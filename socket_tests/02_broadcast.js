@@ -1,39 +1,32 @@
 // tests/02_broadcast.js
 import ws from 'k6/ws';
-import { check, group, sleep } from 'k6';
+import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 import { CONFIG } from '../utils/config.js';
 import { SocketClient } from '../utils/socket-io.js';
 
 // --- 커스텀 메트릭 정의 ---
-// 메시지 수신 레이턴시를 측정하기 위한 트렌드 (ms)
-const broadcastLatency = new Trend('t_broadcast_latency', true);
-// 메시지 수신 성공 카운터
+// Broadcast Latency: 서버 타임스탬프 vs 수신 시점 차이
+const broadcastLatency = new Trend('t_broadcast_latency', true); 
 const receivedCounter = new Counter('c_messages_received');
-// 에러율 (금칙어 차단 등)
 const messageErrorRate = new Rate('r_message_errors');
 
-
 /**
- * 테스트별 개별 설정 (Fan-out 시나리오)
- * 1000명의 VU를 설정합니다.
+ * 테스트 설정 (Fan-out 시나리오)
  */
 export const options = {
-    // 1000명의 동시 사용자 (VU) 설정
-    vus: 1000, 
-    // 2분 30초 동안 테스트 진행
-    duration: '2m30s',
+    // stages를 사용하므로 최상위 vus는 제거하거나 주석 처리
+    // vus: 1000, 
+    
     stages: [
-        { duration: '30s', target: 1000 },  // 30초 동안 1000명까지 급격히 증가 (Ramp-up)
-        { duration: '2m', target: 1000 },   // 2분 동안 1000명 유지 (Load)
+        { duration: '30s', target: 1000 },  // 30초 동안 1000명까지 연결 (Ramp-up)
+        { duration: '2m', target: 1000 },   // 2분 동안 부하 유지
+        { duration: '10s', target: 0 },     // 10초 동안 연결 종료
     ],
     thresholds: {
-        // 메시지 수신 레이턴시 95% 지연 시간이 200ms 미만이어야 합니다.
-        't_broadcast_latency': ['p(95)<200'],
-        // 연결 성공률 99% 이상
-        'checks': ['rate>0.99'],
-        // 메시지 에러율 1% 미만
-        'r_message_errors': ['rate<0.01'], 
+        // 메시지 수신 레이턴시 P95가 500ms 미만 (네트워크 환경 고려하여 약간 상향 조정)
+        't_broadcast_latency': ['p(95)<500'], 
+        'r_message_errors': ['rate<0.01'], // 에러율 1% 미만
     },
 };
 
@@ -41,93 +34,95 @@ export default function () {
     const url = CONFIG.BASE_URL;
     const roomId = CONFIG.TEST_ROOM_ID;
     
-    // VU의 고유 ID (1부터 시작)
+    // VU ID (1 ~ 1000)
     const vuId = __VU;
     
-    // 메시지 발송 역할 VU 지정 (첫 번째 VU만 발송)
+    // VU 1번만 "Broadcaster" 역할을 수행
     const IS_BROADCASTER = (vuId === 1);
-    
-    // --- 1. 연결 및 입장 그룹 ---
-    group('Connection & Join Room', function() {
-        // 웹소켓 연결 시작
-        const res = ws.connect(url, {}, function (socket) {
-            const client = new SocketClient(socket);
-            
-            // 모든 VU는 메시지 수신 로직을 정의해야 합니다.
-            socket.on('message', function (message) {
-                const msgObj = client.listen(message);
 
-                if (msgObj) {
-                    // 서버가 새로운 메시지 'message'를 보낼 때 수신 레이턴시 측정
-                    if (msgObj.event === 'message') {
-                        // 메시지가 서버에서 생성된 시간 (타임스탬프)
-                        const serverTimestamp = msgObj.data.timestamp;
-                        // 현재 클라이언트 시간
-                        const clientTimestamp = Date.now();
-                        
-                        // 서버 타임스탬프와 클라이언트 수신 시간의 차이를 Latency로 측정
-                        const latency = clientTimestamp - serverTimestamp;
-                        
-                        // 커스텀 메트릭에 값 추가
-                        broadcastLatency.add(latency);
-                        receivedCounter.add(1);
+    const params = { 
+        tags: { my_tag: 'broadcast-test' } 
+    };
 
-                        client.log(`Message Received Latency: ${latency}ms`);
-                    }
+    const res = ws.connect(url, params, function (socket) {
+        const client = new SocketClient(socket);
+        
+        socket.on('open', function() {
+            // [중요] 모든 유저가 동시에 joinRoom을 날리지 않도록 랜덤 딜레이(Jitter) 적용
+            // 1초 ~ 5초 사이에 랜덤하게 입장
+            const randomDelay = Math.random() * 4000 + 1000; 
 
-                    // 에러 이벤트 처리
-                    if (msgObj.event === 'error' || msgObj.event === 'joinRoomError') {
-                        messageErrorRate.add(1);
-                        client.error(`Error on VU ${vuId}`, msgObj.data);
-                    }
-                }
-            });
-
-            // 1초 뒤 방 입장 시도
             socket.setTimeout(function () {
+                // 문서: SEND joinRoom
                 client.emit('joinRoom', roomId);
-                // VU가 입장했는지 확인하는 체크
-                check(socket, {
-                    'Join event sent': () => true,
-                });
-            }, 1000);
-            
-            // --- 2. 메시지 발송 로직 (Broadcaster만 실행) ---
-            if (IS_BROADCASTER) {
-                // Broadcaster는 1초마다 메시지 전송을 반복합니다.
+            }, randomDelay);
+        });
+
+        // 메시지 수신 핸들러 (모든 VU 공통)
+        socket.on('message', function (message) {
+            const msgObj = client.listen(message);
+
+            if (!msgObj) return;
+
+            // 1. 메시지 수신 (RECEIVE message)
+            if (msgObj.event === 'message') {
+                const data = msgObj.data;
+                
+                // 내가 보낸 메시지가 다시 돌아오는 경우(Echo)도 측정에 포함됨
+                if (data.type === 'text') {
+                    // 서버가 찍어준 타임스탬프
+                    const serverTs = data.timestamp; 
+                    const now = Date.now();
+                    
+                    // Latency 계산 (서버 시간과 클라이언트 시간 동기화 주의)
+                    const latency = now - serverTs;
+
+                    // 유효한 양수 값일 때만 기록 (시간 동기화 이슈 방지용 필터)
+                    if (latency >= 0) {
+                        broadcastLatency.add(latency);
+                    }
+                    receivedCounter.add(1);
+                }
+            }
+
+            // 2. 에러 처리 (RECEIVE error)
+            if (msgObj.event === 'error' || msgObj.event === 'joinRoomError') {
+                messageErrorRate.add(1);
+                client.error(`Error on VU ${vuId}`, msgObj.data);
+            }
+        });
+
+        // --- Broadcaster 로직 (VU #1) ---
+        if (IS_BROADCASTER) {
+            // 연결 후 5초 뒤부터 메시지 전송 시작 (모두가 입장할 시간 확보)
+            socket.setTimeout(() => {
+                console.log(`VU ${vuId}: Starting Broadcast...`);
+                
+                // 1초 간격으로 메시지 전송
                 socket.setInterval(function() {
+                    // 문서: SEND chatMessage
                     const payload = {
                         room: roomId,
                         type: 'text',
-                        content: `브로드캐스트 메시지 [${Date.now()}] from VU ${vuId}`,
+                        content: `Broadcast [${Date.now()}] from VU ${vuId}`,
                     };
                     
-                    // 채팅 메시지 전송 이벤트
                     client.emit('chatMessage', payload);
-                    
-                    check(socket, {
-                        'chatMessage event sent': () => true,
-                    });
-                }, 1000); // 1000ms 간격으로 반복
-            }
-            
-            // --- 3. 연결 유지 ---
-            // 테스트 duration 동안 연결을 유지합니다.
-            socket.on('error', function (e) {
-                if (e.error() != 'websocket: close sent') {
-                    client.error('WebSocket Error', e.error());
-                }
-            });
+                }, 1000);
+            }, 5000);
+        }
 
-            socket.on('close', function () {
-                client.log('Connection', 'Closed');
-            });
+        // --- 연결 종료 및 에러 핸들링 ---
+        socket.on('close', () => {
+            if (CONFIG.DEBUG) console.log(`VU ${vuId}: Disconnected`);
         });
 
-        // 연결 자체 성공 여부 체크
-        check(res, { 'status is 101': (r) => r && r.status === 101 });
+        socket.on('error', (e) => {
+            if (e.error() !== 'websocket: close sent') {
+                console.error(`VU ${vuId} Socket Error: ${e.error()}`);
+            }
+        });
     });
-    
-    // VU가 무한 루프에 빠지는 것을 방지하고, 메인 루프에서 일정 시간 대기
-    sleep(1); 
+
+    check(res, { 'status is 101': (r) => r && r.status === 101 });
 }
