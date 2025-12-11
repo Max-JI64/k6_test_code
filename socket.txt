@@ -1,0 +1,2384 @@
+socket.io 문서 전체에 대한 설명
+여기서 AI챗봇에 관한 내용은 무시
+이걸 이용해서 부하테스트용 k6 테스트 코드 작성
+
+
+KTB Chat Application - Socket.IO API
+실시간 채팅 애플리케이션의 Socket.IO 이벤트 API 문서
+KTB Chat Application - Socket.IO API 1.0.0
+support@ktbchat.com
+실시간 채팅 애플리케이션의 Socket.IO 이벤트 API 문서입니다.
+이 문서는 클라이언트와 서버 간의 모든 Socket.IO 이벤트와 페이로드를 정의합니다.
+주요 기능
+실시간 채팅 메시지 송수신
+채팅방 입장/퇴장 관리
+메시지 읽음 상태 처리
+메시지 리액션 (이모지)
+AI 스트리밍 메시지
+파일 전송
+Servers
+wss://{host}:{port}/wssproduction
+Socket.IO 서버
+URL VariablesCollapse all
+object
+host
+required
+string서버 호스트
+Default value:"localhost"
+port
+required
+stringSocket.IO 포트
+Default value:"5002"
+Operations
+SEND chatMessage
+채팅 메시지 전송 이벤트.
+금칙어가 포함된 메시지는 서버에서 차단되며, 이 경우 error 이벤트로 MESSAGE_REJECTED 코드가 반환됩니다.
+채팅 메시지 전송
+클라이언트가 채팅 메시지를 서버로 전송합니다.
+예외 응답 (error 이벤트):
+MESSAGE_ERROR: 메시지 데이터 없음, 사용자 없음, 채팅방 권한 없음, 파일 오류
+SESSION_EXPIRED: 세션 만료
+MESSAGE_REJECTED: 금칙어 포함
+Operation IDsendChatMessage
+Available only on servers:
+production
+Accepts the following message:
+채팅 메시지
+채팅 메시지 전송 페이로드
+application/json
+Message IDchatMessagePayload
+PayloadCollapse all
+object
+room
+required
+string채팅방 ID
+type
+string메시지 타입
+Default value:"text"
+Allowed values: "text""file"
+content
+string메시지 내용
+msg
+string메시지 내용 (호환성)
+fileDataCollapse all
+object파일 데이터 (type이 file인 경우)
+_id
+string파일 ID
+Additional properties are allowed.
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "room": "507f1f77bcf86cd799439011",
+  "type": "text",
+  "content": "안녕하세요!",
+  "msg": "string",
+  "fileData": {
+    "_id": "string"
+  }
+}
+This example has been generated automatically.
+SEND joinRoom
+채팅방 입장 이벤트
+채팅방 입장
+클라이언트가 특정 채팅방에 입장합니다.
+예외 응답 (joinRoomError 이벤트):
+UNAUTHORIZED: 인증되지 않은 사용자
+USER_NOT_FOUND: 사용자를 찾을 수 없음
+ROOM_NOT_FOUND: 채팅방을 찾을 수 없음
+JOIN_ROOM_ERROR: 기타 입장 오류
+Operation IDsendJoinRoom
+Available only on servers:
+production
+Accepts the following message:
+채팅방 입장
+채팅방 입장 페이로드
+application/json
+Message IDjoinRoomPayload
+Payload
+string입장할 채팅방 ID
+Examples
+
+Payload
+
+507f1f77bcf86cd799439011
+This example has been generated automatically.
+SEND leaveRoom
+채팅방 퇴장 이벤트
+채팅방 퇴장
+클라이언트가 특정 채팅방에서 퇴장합니다.
+예외 응답 (error 이벤트):
+message만 반환: "Unauthorized", "채팅방 퇴장 중 오류가 발생했습니다."
+Operation IDsendLeaveRoom
+Available only on servers:
+production
+Accepts the following message:
+채팅방 퇴장
+채팅방 퇴장 페이로드
+application/json
+Message IDleaveRoomPayload
+Payload
+string퇴장할 채팅방 ID
+Examples
+
+Payload
+
+507f1f77bcf86cd799439011
+This example has been generated automatically.
+SEND fetchPreviousMessages
+이전 메시지 로드 요청 이벤트
+이전 메시지 로드 요청
+클라이언트가 이전 메시지를 요청합니다.
+예외 응답 (error 이벤트):
+UNAUTHORIZED: 인증이 필요합니다
+LOAD_ERROR: 채팅방 권한 없음, 메시지 로드 중 오류
+Operation IDsendFetchPreviousMessages
+Available only on servers:
+production
+Accepts the following message:
+이전 메시지 로드 요청
+이전 메시지 로드 요청 페이로드
+application/json
+Message IDfetchPreviousMessagesPayload
+PayloadCollapse all
+object
+roomId
+required
+string채팅방 ID
+limit
+integer가져올 메시지 개수
+Default value:30
+before
+integerformat: int64
+이전 메시지 타임스탬프 (milliseconds)
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "roomId": "507f1f77bcf86cd799439011",
+  "limit": 30,
+  "before": 1699999999999
+}
+This example has been generated automatically.
+SEND markMessagesAsRead
+메시지 읽음 처리 이벤트
+메시지 읽음 처리
+클라이언트가 메시지를 읽음으로 표시합니다.
+예외 응답 (error 이벤트):
+message만 반환: "Unauthorized", "Invalid room", "User not found", "Room access denied", "읽음 상태 업데이트 중 오류가 발생했습니다."
+Operation IDsendMarkMessagesAsRead
+Available only on servers:
+production
+Accepts the following message:
+메시지 읽음 처리
+메시지 읽음 처리 페이로드
+application/json
+Message IDmarkMessagesAsReadPayload
+PayloadCollapse all
+object
+roomId
+string채팅방 ID
+messageIdsCollapse all
+required
+array<string>읽은 메시지 ID 목록
+Items:
+string
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "roomId": "string",
+  "messageIds": [
+    "string"
+  ]
+}
+This example has been generated automatically.
+SEND messageReaction
+메시지 리액션 추가/제거 이벤트
+메시지 리액션 추가/제거
+클라이언트가 메시지에 리액션을 추가하거나 제거합니다.
+예외 응답 (error 이벤트):
+message만 반환: "Unauthorized", "메시지를 찾을 수 없습니다.", "지원하지 않는 리액션 타입입니다.", "리액션 처리 중 오류가 발생했습니다."
+Operation IDsendMessageReaction
+Available only on servers:
+production
+Accepts the following message:
+메시지 리액션
+메시지 리액션 추가/제거 페이로드
+application/json
+Message IDmessageReactionPayload
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+reaction
+string리액션 이모지
+type
+required
+string리액션 타입 (추가/제거)
+Allowed values: "add""remove"
+emoji
+string이모지 (호환성)
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messageId": "string",
+  "reaction": "👍",
+  "type": "add",
+  "emoji": "string"
+}
+This example has been generated automatically.
+RECEIVE message
+새로운 메시지 브로드캐스트
+새로운 메시지 수신
+서버가 새로운 메시지를 브로드캐스트합니다.
+Operation IDreceiveMessage
+Available only on servers:
+production
+Accepts the following message:
+메시지 응답
+새로운 메시지 브로드캐스트 페이로드
+application/json
+Message IDmessageResponse
+PayloadCollapse all
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileCollapse all
+object
+_id
+required
+string파일 ID
+filename
+required
+string저장된 파일명
+originalname
+required
+string원본 파일명
+mimetype
+required
+stringMIME 타입
+size
+required
+integerformat: int64
+파일 크기 (bytes)
+user
+string업로드한 사용자 ID
+uploadDate
+stringformat: date-time
+업로드 날짜
+Additional properties are allowed.
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsCollapse all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+readersCollapse all
+array<object>읽음 정보
+
+object
+userId
+string
+readAt
+integerformat: int64
+Additional properties are allowed.
+metadataCollapse all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "room": "string",
+  "content": "string",
+  "sender": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "홍길동",
+    "email": "user@example.com",
+    "profileImage": "https://example.com/profile.jpg"
+  },
+  "type": "text",
+  "file": {
+    "_id": "string",
+    "filename": "string",
+    "originalname": "string",
+    "mimetype": "image/png",
+    "size": 0,
+    "user": "string",
+    "uploadDate": "2019-08-24T14:15:22Z"
+  },
+  "aiType": "CLAUDE",
+  "timestamp": 0,
+  "reactions": {
+    "property1": [
+      "string"
+    ],
+    "property2": [
+      "string"
+    ]
+  },
+  "readers": [
+    {
+      "userId": "string",
+      "readAt": 0
+    }
+  ],
+  "metadata": {}
+}
+This example has been generated automatically.
+RECEIVE error
+에러 알림. Socket.IO 이벤트 처리 중 발생하는 모든 에러를 전달합니다.
+에러 코드 목록:
+인증/세션 관련:
+SESSION_EXPIRED: 세션이 만료되었거나 인증 정보가 유효하지 않음
+UNAUTHORIZED: 인증이 필요한 작업을 시도함
+메시지 관련:
+MESSAGE_ERROR: 메시지 처리 중 일반 오류 (데이터 없음, 사용자 없음, 권한 없음 등)
+MESSAGE_REJECTED: 금칙어가 포함되어 메시지가 차단됨
+RATE_LIMIT_EXCEEDED: 메시지 전송 횟수 제한을 초과했을 때
+LOAD_ERROR: 이전 메시지 로드 중 오류 발생
+참고: 일부 핸들러에서는 code 없이 message만 반환할 수 있습니다.
+에러 수신
+서버가 에러를 클라이언트에게 전송합니다.
+Operation IDreceiveError
+Available only on servers:
+production
+Accepts the following message:
+에러 응답
+에러 알림 페이로드
+application/json
+Message IDerrorResponse
+PayloadCollapse all
+object
+code
+string에러 코드 (optional - 일부 응답에서는 제공되지 않을 수 있음).
+인증/세션 관련:
+SESSION_EXPIRED: 세션이 만료되었거나 인증 정보가 유효하지 않음
+UNAUTHORIZED: 인증이 필요한 작업을 시도함
+메시지 관련:
+MESSAGE_ERROR: 메시지 저장/전송 관련 일반 오류 (데이터 없음, 사용자 없음, 권한 없음, 파일 오류 등)
+MESSAGE_REJECTED: 금칙어가 포함되어 메시지가 거부됨
+RATE_LIMIT_EXCEEDED: 메시지 전송 횟수 제한 초과 (1분에 10000개)
+LOAD_ERROR: 이전 메시지 로드 중 오류 발생
+메시지 읽음 처리 관련:
+에러 코드 없이 message만 반환: Unauthorized, Invalid room, User not found, Room access denied 등
+메시지 리액션 관련:
+에러 코드 없이 message만 반환: Unauthorized, 메시지를 찾을 수 없습니다, 지원하지 않는 리액션 타입입니다 등
+채팅방 퇴장 관련:
+에러 코드 없이 message만 반환: Unauthorized, 채팅방 퇴장 중 오류가 발생했습니다 등
+message
+required
+string에러 메시지. 에러 코드가 없는 경우 이 필드만 제공됩니다.
+retryAfter
+integerformat: int64
+Rate limit 초과 시, 재시도 가능한 시간 (초). RATE_LIMIT_EXCEEDED 에러에만 포함됨.
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "code": "MESSAGE_REJECTED",
+  "message": "메시지 전송 중 오류가 발생했습니다.",
+  "retryAfter": 30
+}
+This example has been generated automatically.
+RECEIVE joinRoomSuccess
+채팅방 입장 성공
+채팅방 입장 성공 수신
+서버가 채팅방 입장 성공을 알립니다.
+Operation IDreceiveJoinRoomSuccess
+Available only on servers:
+production
+Accepts the following message:
+채팅방 입장 성공
+채팅방 입장 성공 페이로드
+application/json
+Message IDjoinRoomSuccessResponse
+PayloadCollapse all
+object
+roomId
+required
+string채팅방 ID
+participantsCollapse all
+required
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+messagesCollapse all
+required
+array<object>초기 메시지 목록
+
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderExpand all
+object
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileExpand all
+object
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsExpand all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+readersExpand all
+array<object>읽음 정보
+metadataExpand all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+hasMore
+required
+boolean더 많은 메시지 존재 여부
+activeStreamsCollapse all
+array<object>활성 스트림 목록
+Items:
+object
+Additional properties are allowed.
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "roomId": "string",
+  "participants": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "홍길동",
+      "email": "user@example.com",
+      "profileImage": "https://example.com/profile.jpg"
+    }
+  ],
+  "messages": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "room": "string",
+      "content": "string",
+      "sender": {
+        "id": "507f1f77bcf86cd799439011",
+        "name": "홍길동",
+        "email": "user@example.com",
+        "profileImage": "https://example.com/profile.jpg"
+      },
+      "type": "text",
+      "file": {
+        "_id": "string",
+        "filename": "string",
+        "originalname": "string",
+        "mimetype": "image/png",
+        "size": 0,
+        "user": "string",
+        "uploadDate": "2019-08-24T14:15:22Z"
+      },
+      "aiType": "CLAUDE",
+      "timestamp": 0,
+      "reactions": {
+        "property1": [
+          "string"
+        ],
+        "property2": [
+          "string"
+        ]
+      },
+      "readers": [
+        {
+          "userId": "string",
+          "readAt": 0
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "hasMore": true,
+  "activeStreams": [
+    {}
+  ]
+}
+This example has been generated automatically.
+RECEIVE joinRoomError
+채팅방 입장 실패.
+발생 가능한 에러:
+UNAUTHORIZED: 인증되지 않은 사용자
+USER_NOT_FOUND: 사용자를 찾을 수 없음
+ROOM_NOT_FOUND: 채팅방을 찾을 수 없음
+JOIN_ROOM_ERROR: 기타 채팅방 입장 오류
+채팅방 입장 실패 수신
+서버가 채팅방 입장 실패를 알립니다.
+Operation IDreceiveJoinRoomError
+Available only on servers:
+production
+Accepts the following message:
+채팅방 입장 실패
+채팅방 입장 실패 페이로드
+application/json
+Message IDjoinRoomErrorResponse
+PayloadCollapse all
+object
+code
+string에러 코드 (optional - 일부 응답에서는 제공되지 않을 수 있음)
+UNAUTHORIZED: 인증되지 않은 사용자
+USER_NOT_FOUND: 사용자를 찾을 수 없음
+ROOM_NOT_FOUND: 채팅방을 찾을 수 없음
+JOIN_ROOM_ERROR: 기타 채팅방 입장 오류
+message
+required
+string에러 메시지
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "code": "ROOM_NOT_FOUND",
+  "message": "채팅방을 찾을 수 없습니다."
+}
+This example has been generated automatically.
+RECEIVE previousMessagesLoaded
+이전 메시지 로드 완료
+이전 메시지 로드 완료 수신
+서버가 이전 메시지 로드 완료를 알립니다.
+Operation IDreceivePreviousMessagesLoaded
+Available only on servers:
+production
+Accepts the following message:
+이전 메시지 로드 완료
+이전 메시지 로드 완료 페이로드
+application/json
+Message IDpreviousMessagesLoadedResponse
+PayloadCollapse all
+object
+messagesCollapse all
+required
+array<object>메시지 목록
+
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderExpand all
+object
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileExpand all
+object
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsExpand all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+readersExpand all
+array<object>읽음 정보
+metadataExpand all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+hasMore
+required
+boolean더 많은 메시지 존재 여부
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messages": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "room": "string",
+      "content": "string",
+      "sender": {
+        "id": "507f1f77bcf86cd799439011",
+        "name": "홍길동",
+        "email": "user@example.com",
+        "profileImage": "https://example.com/profile.jpg"
+      },
+      "type": "text",
+      "file": {
+        "_id": "string",
+        "filename": "string",
+        "originalname": "string",
+        "mimetype": "image/png",
+        "size": 0,
+        "user": "string",
+        "uploadDate": "2019-08-24T14:15:22Z"
+      },
+      "aiType": "CLAUDE",
+      "timestamp": 0,
+      "reactions": {
+        "property1": [
+          "string"
+        ],
+        "property2": [
+          "string"
+        ]
+      },
+      "readers": [
+        {
+          "userId": "string",
+          "readAt": 0
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "hasMore": true
+}
+This example has been generated automatically.
+RECEIVE messageLoadStart
+메시지 로드 시작
+메시지 로드 시작 수신
+서버가 메시지 로드 시작을 알립니다.
+Operation IDreceiveMessageLoadStart
+Available only on servers:
+production
+Accepts the following message:
+메시지 로드 시작
+메시지 로드 시작 페이로드
+application/json
+Message IDmessageLoadStartResponse
+PayloadCollapse all
+object빈 페이로드
+Additional properties are allowed.
+Examples
+
+Payload
+
+{}
+This example has been generated automatically.
+RECEIVE participantsUpdate
+참가자 업데이트
+참가자 업데이트 수신
+서버가 참가자 목록 업데이트를 알립니다.
+Operation IDreceiveParticipantsUpdate
+Available only on servers:
+production
+Accepts the following message:
+참가자 업데이트
+참가자 목록 업데이트 페이로드
+application/json
+Message IDparticipantsUpdateResponse
+PayloadCollapse all
+array<object>
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+Examples
+
+Payload
+
+[
+  {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "홍길동",
+    "email": "user@example.com",
+    "profileImage": "https://example.com/profile.jpg"
+  }
+]
+This example has been generated automatically.
+RECEIVE roomCreated
+채팅방 생성 알림
+채팅방 생성 알림 수신
+서버가 새로운 채팅방 생성을 알립니다.
+Operation IDreceiveRoomCreated
+Available only on servers:
+production
+Accepts the following message:
+채팅방 응답
+채팅방 정보 페이로드
+application/json
+Message IDroomCreatedResponse
+PayloadCollapse all
+object
+_id
+required
+string채팅방 ID
+name
+required
+string채팅방 이름
+hasPassword
+required
+boolean비밀번호 설정 여부
+creatorCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCollapse all
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCount
+integer참가자 수
+createdAt
+stringformat: date-time
+생성 날짜
+isCreator
+boolean현재 사용자가 생성자인지 여부
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "_id": "string",
+  "name": "string",
+  "hasPassword": true,
+  "creator": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "홍길동",
+    "email": "user@example.com",
+    "profileImage": "https://example.com/profile.jpg"
+  },
+  "participants": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "홍길동",
+      "email": "user@example.com",
+      "profileImage": "https://example.com/profile.jpg"
+    }
+  ],
+  "participantsCount": 0,
+  "createdAt": "2019-08-24T14:15:22Z",
+  "isCreator": true
+}
+This example has been generated automatically.
+RECEIVE roomUpdated
+채팅방 정보 업데이트
+채팅방 업데이트 수신
+서버가 채팅방 정보 업데이트를 알립니다.
+Operation IDreceiveRoomUpdated
+Available only on servers:
+production
+Accepts the following message:
+채팅방 응답
+채팅방 정보 페이로드
+application/json
+Message IDroomUpdatedResponse
+PayloadCollapse all
+object
+_id
+required
+string채팅방 ID
+name
+required
+string채팅방 이름
+hasPassword
+required
+boolean비밀번호 설정 여부
+creatorCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCollapse all
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCount
+integer참가자 수
+createdAt
+stringformat: date-time
+생성 날짜
+isCreator
+boolean현재 사용자가 생성자인지 여부
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "_id": "string",
+  "name": "string",
+  "hasPassword": true,
+  "creator": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "홍길동",
+    "email": "user@example.com",
+    "profileImage": "https://example.com/profile.jpg"
+  },
+  "participants": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "홍길동",
+      "email": "user@example.com",
+      "profileImage": "https://example.com/profile.jpg"
+    }
+  ],
+  "participantsCount": 0,
+  "createdAt": "2019-08-24T14:15:22Z",
+  "isCreator": true
+}
+This example has been generated automatically.
+RECEIVE roomDeleted
+채팅방 삭제 알림
+채팅방 삭제 알림 수신
+서버가 채팅방 삭제를 알립니다.
+Operation IDreceiveRoomDeleted
+Available only on servers:
+production
+Accepts the following message:
+채팅방 삭제
+채팅방 삭제 페이로드
+application/json
+Message IDroomDeletedResponse
+Payload
+string삭제된 채팅방 ID
+Examples
+
+Payload
+
+507f1f77bcf86cd799439011
+This example has been generated automatically.
+RECEIVE userLeft
+사용자 퇴장 알림
+사용자 퇴장 알림 수신
+서버가 사용자 퇴장을 알립니다.
+Operation IDreceiveUserLeft
+Available only on servers:
+production
+Accepts the following message:
+사용자 퇴장
+사용자 퇴장 페이로드
+application/json
+Message IDuserLeftResponse
+PayloadCollapse all
+object
+userId
+required
+string퇴장한 사용자 ID
+name
+required
+string퇴장한 사용자 이름
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "userId": "string",
+  "name": "string"
+}
+This example has been generated automatically.
+RECEIVE messagesRead
+메시지 읽음 상태 업데이트
+메시지 읽음 상태 업데이트 수신
+서버가 메시지 읽음 상태를 알립니다.
+Operation IDreceiveMessagesRead
+Available only on servers:
+production
+Accepts the following message:
+메시지 읽음 상태 업데이트
+메시지 읽음 상태 업데이트 페이로드
+application/json
+Message IDmessagesReadResponse
+PayloadCollapse all
+object
+userId
+required
+string읽은 사용자 ID
+messageIdsCollapse all
+required
+array<string>읽은 메시지 ID 목록
+Items:
+string
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "userId": "string",
+  "messageIds": [
+    "string"
+  ]
+}
+This example has been generated automatically.
+RECEIVE messageReactionUpdate
+메시지 리액션 업데이트
+메시지 리액션 업데이트 수신
+서버가 메시지 리액션 업데이트를 알립니다.
+Operation IDreceiveMessageReactionUpdate
+Available only on servers:
+production
+Accepts the following message:
+메시지 리액션 업데이트
+메시지 리액션 업데이트 페이로드
+application/json
+Message IDmessageReactionUpdateResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+reactionsCollapse all
+required
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messageId": "string",
+  "reactions": {
+    "property1": [
+      "string"
+    ],
+    "property2": [
+      "string"
+    ]
+  }
+}
+This example has been generated automatically.
+RECEIVE duplicate_login
+중복 로그인 감지
+중복 로그인 감지 수신
+서버가 중복 로그인을 감지했음을 알립니다.
+Operation IDreceiveDuplicateLogin
+Available only on servers:
+production
+Accepts the following message:
+중복 로그인
+중복 로그인 감지 페이로드
+application/json
+Message IDduplicateLoginResponse
+PayloadCollapse all
+object
+type
+required
+string중복 로그인 유형
+deviceInfo
+string디바이스 정보
+ipAddress
+stringIP 주소
+timestamp
+integerformat: int64
+타임스탬프 (milliseconds)
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "type": "string",
+  "deviceInfo": "string",
+  "ipAddress": "string",
+  "timestamp": 0
+}
+This example has been generated automatically.
+RECEIVE session_ended
+세션 종료 알림
+세션 종료 알림 수신
+서버가 세션 종료를 알립니다.
+Operation IDreceiveSessionEnded
+Available only on servers:
+production
+Accepts the following message:
+세션 종료
+세션 종료 페이로드
+application/json
+Message IDsessionEndedResponse
+PayloadCollapse all
+object
+reason
+required
+string종료 사유
+message
+required
+string종료 메시지
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "reason": "string",
+  "message": "string"
+}
+This example has been generated automatically.
+RECEIVE aiMessageStart
+AI 스트리밍 시작
+AI 메시지 스트리밍 시작 수신
+서버가 AI 메시지 스트리밍 시작을 알립니다.
+Operation IDreceiveAiMessageStart
+Available only on servers:
+production
+Accepts the following message:
+AI 메시지 시작
+AI 스트리밍 시작 페이로드
+application/json
+Message IDaiMessageStartResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+aiType
+required
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+시작 시간 (milliseconds)
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messageId": "string",
+  "aiType": "CLAUDE",
+  "timestamp": 0
+}
+This example has been generated automatically.
+RECEIVE aiMessageChunk
+AI 스트리밍 청크
+AI 메시지 청크 수신
+서버가 AI 메시지 청크를 전송합니다.
+Operation IDreceiveAiMessageChunk
+Available only on servers:
+production
+Accepts the following message:
+AI 메시지 청크
+AI 스트리밍 청크 페이로드
+application/json
+Message IDaiMessageChunkResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+currentChunk
+string현재 청크
+fullContent
+required
+string전체 내용 (누적)
+isCodeBlock
+required
+boolean코드 블록 여부
+timestamp
+integerformat: int64
+타임스탬프
+aiType
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+isComplete
+required
+boolean완료 여부
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messageId": "string",
+  "currentChunk": "string",
+  "fullContent": "string",
+  "isCodeBlock": true,
+  "timestamp": 0,
+  "aiType": "CLAUDE",
+  "isComplete": true
+}
+This example has been generated automatically.
+RECEIVE aiMessageComplete
+AI 스트리밍 완료
+AI 메시지 완료 수신
+서버가 AI 메시지 스트리밍 완료를 알립니다.
+Operation IDreceiveAiMessageComplete
+Available only on servers:
+production
+Accepts the following message:
+AI 메시지 완료
+AI 스트리밍 완료 페이로드
+application/json
+Message IDaiMessageCompleteResponse
+PayloadCollapse all
+object
+messageId
+string임시 메시지 ID
+_id
+required
+string저장된 메시지 ID
+content
+required
+string완료된 메시지 내용
+aiType
+required
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+완료 시간
+isComplete
+boolean완료 여부
+query
+string원본 쿼리
+reactionsCollapse all
+object리액션 맵
+Additional properties:Collapse all
+array<string>
+Items:
+string
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messageId": "string",
+  "_id": "string",
+  "content": "string",
+  "aiType": "CLAUDE",
+  "timestamp": 0,
+  "isComplete": true,
+  "query": "string",
+  "reactions": {
+    "property1": [
+      "string"
+    ],
+    "property2": [
+      "string"
+    ]
+  }
+}
+This example has been generated automatically.
+RECEIVE aiMessageError
+AI 스트리밍 에러
+AI 메시지 에러 수신
+서버가 AI 메시지 에러를 알립니다.
+Operation IDreceiveAiMessageError
+Available only on servers:
+production
+Accepts the following message:
+AI 메시지 에러
+AI 스트리밍 에러 페이로드
+application/json
+Message IDaiMessageErrorResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+error
+required
+string에러 메시지
+aiType
+required
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+Additional properties are allowed.
+Examples
+
+Payload
+
+{
+  "messageId": "string",
+  "error": "string",
+  "aiType": "CLAUDE"
+}
+This example has been generated automatically.
+Messages
+#1채팅 메시지
+채팅 메시지 전송 페이로드
+application/json
+Message IDChatMessagePayload
+PayloadCollapse all
+object
+room
+required
+string채팅방 ID
+type
+string메시지 타입
+Default value:"text"
+Allowed values: "text""file"
+content
+string메시지 내용
+msg
+string메시지 내용 (호환성)
+fileDataCollapse all
+object파일 데이터 (type이 file인 경우)
+_id
+string파일 ID
+Additional properties are allowed.
+Additional properties are allowed.
+#2채팅방 입장
+채팅방 입장 페이로드
+application/json
+Message IDJoinRoomPayload
+Payload
+string입장할 채팅방 ID
+#3채팅방 퇴장
+채팅방 퇴장 페이로드
+application/json
+Message IDLeaveRoomPayload
+Payload
+string퇴장할 채팅방 ID
+#4이전 메시지 로드 요청
+이전 메시지 로드 요청 페이로드
+application/json
+Message IDFetchPreviousMessagesPayload
+PayloadCollapse all
+object
+roomId
+required
+string채팅방 ID
+limit
+integer가져올 메시지 개수
+Default value:30
+before
+integerformat: int64
+이전 메시지 타임스탬프 (milliseconds)
+Additional properties are allowed.
+#5메시지 읽음 처리
+메시지 읽음 처리 페이로드
+application/json
+Message IDMarkMessagesAsReadPayload
+PayloadCollapse all
+object
+roomId
+string채팅방 ID
+messageIdsCollapse all
+required
+array<string>읽은 메시지 ID 목록
+Items:
+string
+Additional properties are allowed.
+#6메시지 리액션
+메시지 리액션 추가/제거 페이로드
+application/json
+Message IDMessageReactionPayload
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+reaction
+string리액션 이모지
+type
+required
+string리액션 타입 (추가/제거)
+Allowed values: "add""remove"
+emoji
+string이모지 (호환성)
+Additional properties are allowed.
+#7메시지 응답
+새로운 메시지 브로드캐스트 페이로드
+application/json
+Message IDMessageResponse
+PayloadCollapse all
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileCollapse all
+object
+_id
+required
+string파일 ID
+filename
+required
+string저장된 파일명
+originalname
+required
+string원본 파일명
+mimetype
+required
+stringMIME 타입
+size
+required
+integerformat: int64
+파일 크기 (bytes)
+user
+string업로드한 사용자 ID
+uploadDate
+stringformat: date-time
+업로드 날짜
+Additional properties are allowed.
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsCollapse all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+readersCollapse all
+array<object>읽음 정보
+
+object
+userId
+string
+readAt
+integerformat: int64
+Additional properties are allowed.
+metadataCollapse all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+Additional properties are allowed.
+#8에러 응답
+에러 알림 페이로드
+application/json
+Message IDErrorResponse
+PayloadCollapse all
+object
+code
+string에러 코드 (optional - 일부 응답에서는 제공되지 않을 수 있음).
+인증/세션 관련:
+SESSION_EXPIRED: 세션이 만료되었거나 인증 정보가 유효하지 않음
+UNAUTHORIZED: 인증이 필요한 작업을 시도함
+메시지 관련:
+MESSAGE_ERROR: 메시지 저장/전송 관련 일반 오류 (데이터 없음, 사용자 없음, 권한 없음, 파일 오류 등)
+MESSAGE_REJECTED: 금칙어가 포함되어 메시지가 거부됨
+RATE_LIMIT_EXCEEDED: 메시지 전송 횟수 제한 초과 (1분에 10000개)
+LOAD_ERROR: 이전 메시지 로드 중 오류 발생
+메시지 읽음 처리 관련:
+에러 코드 없이 message만 반환: Unauthorized, Invalid room, User not found, Room access denied 등
+메시지 리액션 관련:
+에러 코드 없이 message만 반환: Unauthorized, 메시지를 찾을 수 없습니다, 지원하지 않는 리액션 타입입니다 등
+채팅방 퇴장 관련:
+에러 코드 없이 message만 반환: Unauthorized, 채팅방 퇴장 중 오류가 발생했습니다 등
+message
+required
+string에러 메시지. 에러 코드가 없는 경우 이 필드만 제공됩니다.
+retryAfter
+integerformat: int64
+Rate limit 초과 시, 재시도 가능한 시간 (초). RATE_LIMIT_EXCEEDED 에러에만 포함됨.
+Additional properties are allowed.
+#9채팅방 입장 성공
+채팅방 입장 성공 페이로드
+application/json
+Message IDJoinRoomSuccessResponse
+PayloadCollapse all
+object
+roomId
+required
+string채팅방 ID
+participantsCollapse all
+required
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+messagesCollapse all
+required
+array<object>초기 메시지 목록
+
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileCollapse all
+object
+_id
+required
+string파일 ID
+filename
+required
+string저장된 파일명
+originalname
+required
+string원본 파일명
+mimetype
+required
+stringMIME 타입
+size
+required
+integerformat: int64
+파일 크기 (bytes)
+user
+string업로드한 사용자 ID
+uploadDate
+stringformat: date-time
+업로드 날짜
+Additional properties are allowed.
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsCollapse all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+readersCollapse all
+array<object>읽음 정보
+
+object
+userId
+string
+readAt
+integerformat: int64
+Additional properties are allowed.
+metadataCollapse all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+Additional properties are allowed.
+hasMore
+required
+boolean더 많은 메시지 존재 여부
+activeStreamsCollapse all
+array<object>활성 스트림 목록
+Items:
+object
+Additional properties are allowed.
+Additional properties are allowed.
+#10채팅방 입장 실패
+채팅방 입장 실패 페이로드
+application/json
+Message IDJoinRoomErrorResponse
+PayloadCollapse all
+object
+code
+string에러 코드 (optional - 일부 응답에서는 제공되지 않을 수 있음)
+UNAUTHORIZED: 인증되지 않은 사용자
+USER_NOT_FOUND: 사용자를 찾을 수 없음
+ROOM_NOT_FOUND: 채팅방을 찾을 수 없음
+JOIN_ROOM_ERROR: 기타 채팅방 입장 오류
+message
+required
+string에러 메시지
+Additional properties are allowed.
+#11이전 메시지 로드 완료
+이전 메시지 로드 완료 페이로드
+application/json
+Message IDPreviousMessagesLoadedResponse
+PayloadCollapse all
+object
+messagesCollapse all
+required
+array<object>메시지 목록
+
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderExpand all
+object
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileExpand all
+object
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsExpand all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+readersExpand all
+array<object>읽음 정보
+metadataExpand all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+hasMore
+required
+boolean더 많은 메시지 존재 여부
+Additional properties are allowed.
+#12메시지 로드 시작
+메시지 로드 시작 페이로드
+application/json
+Message IDMessageLoadStartResponse
+PayloadCollapse all
+object빈 페이로드
+Additional properties are allowed.
+#13참가자 업데이트
+참가자 목록 업데이트 페이로드
+application/json
+Message IDParticipantsUpdateResponse
+PayloadCollapse all
+array<object>
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+#14채팅방 응답
+채팅방 정보 페이로드
+application/json
+Message IDRoomResponse
+PayloadCollapse all
+object
+_id
+required
+string채팅방 ID
+name
+required
+string채팅방 이름
+hasPassword
+required
+boolean비밀번호 설정 여부
+creatorCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCollapse all
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCount
+integer참가자 수
+createdAt
+stringformat: date-time
+생성 날짜
+isCreator
+boolean현재 사용자가 생성자인지 여부
+Additional properties are allowed.
+#15채팅방 삭제
+채팅방 삭제 페이로드
+application/json
+Message IDRoomDeletedResponse
+Payload
+string삭제된 채팅방 ID
+#16사용자 퇴장
+사용자 퇴장 페이로드
+application/json
+Message IDUserLeftResponse
+PayloadCollapse all
+object
+userId
+required
+string퇴장한 사용자 ID
+name
+required
+string퇴장한 사용자 이름
+Additional properties are allowed.
+#17메시지 읽음 상태 업데이트
+메시지 읽음 상태 업데이트 페이로드
+application/json
+Message IDMessagesReadResponse
+PayloadCollapse all
+object
+userId
+required
+string읽은 사용자 ID
+messageIdsCollapse all
+required
+array<string>읽은 메시지 ID 목록
+Items:
+string
+Additional properties are allowed.
+#18메시지 리액션 업데이트
+메시지 리액션 업데이트 페이로드
+application/json
+Message IDMessageReactionUpdateResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+reactionsCollapse all
+required
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+Additional properties are allowed.
+#19중복 로그인
+중복 로그인 감지 페이로드
+application/json
+Message IDDuplicateLoginResponse
+PayloadCollapse all
+object
+type
+required
+string중복 로그인 유형
+deviceInfo
+string디바이스 정보
+ipAddress
+stringIP 주소
+timestamp
+integerformat: int64
+타임스탬프 (milliseconds)
+Additional properties are allowed.
+#20세션 종료
+세션 종료 페이로드
+application/json
+Message IDSessionEndedResponse
+PayloadCollapse all
+object
+reason
+required
+string종료 사유
+message
+required
+string종료 메시지
+Additional properties are allowed.
+#21AI 메시지 시작
+AI 스트리밍 시작 페이로드
+application/json
+Message IDAiMessageStartResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+aiType
+required
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+시작 시간 (milliseconds)
+Additional properties are allowed.
+#22AI 메시지 청크
+AI 스트리밍 청크 페이로드
+application/json
+Message IDAiMessageChunkResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+currentChunk
+string현재 청크
+fullContent
+required
+string전체 내용 (누적)
+isCodeBlock
+required
+boolean코드 블록 여부
+timestamp
+integerformat: int64
+타임스탬프
+aiType
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+isComplete
+required
+boolean완료 여부
+Additional properties are allowed.
+#23AI 메시지 완료
+AI 스트리밍 완료 페이로드
+application/json
+Message IDAiMessageCompleteResponse
+PayloadCollapse all
+object
+messageId
+string임시 메시지 ID
+_id
+required
+string저장된 메시지 ID
+content
+required
+string완료된 메시지 내용
+aiType
+required
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+완료 시간
+isComplete
+boolean완료 여부
+query
+string원본 쿼리
+reactionsCollapse all
+object리액션 맵
+Additional properties:Collapse all
+array<string>
+Items:
+string
+Additional properties are allowed.
+#24AI 메시지 에러
+AI 스트리밍 에러 페이로드
+application/json
+Message IDAiMessageErrorResponse
+PayloadCollapse all
+object
+messageId
+required
+string메시지 ID
+error
+required
+string에러 메시지
+aiType
+required
+stringAI 타입
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+Additional properties are allowed.
+Schemas
+ChatMessageRequestExpand all
+object
+room
+required
+string채팅방 ID
+type
+string메시지 타입
+Default value:"text"
+Allowed values: "text""file"
+content
+string메시지 내용
+msg
+string메시지 내용 (호환성)
+fileDataCollapse all
+object파일 데이터 (type이 file인 경우)
+_id
+string파일 ID
+Additional properties are allowed.
+Additional properties are allowed.
+FetchMessagesRequestExpand all
+object
+roomId
+required
+string채팅방 ID
+limit
+integer가져올 메시지 개수
+Default value:30
+before
+integerformat: int64
+이전 메시지 타임스탬프 (milliseconds)
+Additional properties are allowed.
+MarkAsReadRequestExpand all
+object
+roomId
+string채팅방 ID
+messageIdsExpand all
+required
+array<string>읽은 메시지 ID 목록
+Items:
+string
+Additional properties are allowed.
+MessageReactionRequestExpand all
+object
+messageId
+required
+string메시지 ID
+reaction
+string리액션 이모지
+type
+required
+string리액션 타입 (추가/제거)
+Allowed values: "add""remove"
+emoji
+string이모지 (호환성)
+Additional properties are allowed.
+MessageResponseExpand all
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderExpand all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileCollapse all
+object
+_id
+required
+string파일 ID
+filename
+required
+string저장된 파일명
+originalname
+required
+string원본 파일명
+mimetype
+required
+stringMIME 타입
+size
+required
+integerformat: int64
+파일 크기 (bytes)
+user
+string업로드한 사용자 ID
+uploadDate
+stringformat: date-time
+업로드 날짜
+Additional properties are allowed.
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsExpand all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Expand all
+array<string>
+readersExpand all
+array<object>읽음 정보
+
+object
+userId
+string
+readAt
+integerformat: int64
+Additional properties are allowed.
+metadataExpand all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+Additional properties are allowed.
+UserResponseExpand all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+FileResponseExpand all
+object
+_id
+required
+string파일 ID
+filename
+required
+string저장된 파일명
+originalname
+required
+string원본 파일명
+mimetype
+required
+stringMIME 타입
+size
+required
+integerformat: int64
+파일 크기 (bytes)
+user
+string업로드한 사용자 ID
+uploadDate
+stringformat: date-time
+업로드 날짜
+Additional properties are allowed.
+JoinRoomSuccessResponseExpand all
+object
+roomId
+required
+string채팅방 ID
+participantsExpand all
+required
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+messagesCollapse all
+required
+array<object>초기 메시지 목록
+
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderExpand all
+object
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileExpand all
+object
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsCollapse all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+readersCollapse all
+array<object>읽음 정보
+
+object
+userId
+string
+readAt
+integerformat: int64
+Additional properties are allowed.
+metadataCollapse all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+Additional properties are allowed.
+hasMore
+required
+boolean더 많은 메시지 존재 여부
+activeStreamsCollapse all
+array<object>활성 스트림 목록
+Items:
+object
+Additional properties are allowed.
+Additional properties are allowed.
+FetchMessagesResponseExpand all
+object
+messagesCollapse all
+required
+array<object>메시지 목록
+
+object
+_id
+required
+string메시지 ID
+room
+required
+string채팅방 ID
+content
+required
+string메시지 내용
+senderCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+type
+required
+string메시지 타입
+Allowed values: "text""file""system""ai"
+fileCollapse all
+object
+_id
+required
+string파일 ID
+filename
+required
+string저장된 파일명
+originalname
+required
+string원본 파일명
+mimetype
+required
+stringMIME 타입
+size
+required
+integerformat: int64
+파일 크기 (bytes)
+user
+string업로드한 사용자 ID
+uploadDate
+stringformat: date-time
+업로드 날짜
+Additional properties are allowed.
+aiType
+stringAI 타입 (AI 메시지인 경우)
+Allowed values: "CLAUDE""GEMINI""OPENAI"
+timestamp
+required
+integerformat: int64
+타임스탬프 (milliseconds)
+reactionsCollapse all
+object리액션 맵 (이모지 -> 사용자 ID 배열)
+Additional properties:Collapse all
+array<string>
+Items:
+string
+readersCollapse all
+array<object>읽음 정보
+
+object
+userId
+string
+readAt
+integerformat: int64
+Additional properties are allowed.
+metadataCollapse all
+object메타데이터 (자유 형식)
+Additional properties are allowed.
+Additional properties are allowed.
+hasMore
+required
+boolean더 많은 메시지 존재 여부
+Additional properties are allowed.
+RoomResponseCollapse all
+object
+_id
+required
+string채팅방 ID
+name
+required
+string채팅방 이름
+hasPassword
+required
+boolean비밀번호 설정 여부
+creatorCollapse all
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCollapse all
+array<object>참가자 목록
+
+object
+id
+required
+string사용자 ID
+name
+required
+string사용자 이름
+email
+required
+stringformat: email
+이메일
+profileImage
+string프로필 이미지 URL
+Additional properties are allowed.
+participantsCount
+integer참가자 수
+createdAt
+stringformat: date-time
+생성 날짜
+isCreator
+boolean현재 사용자가 생성자인지 여부
+Additional properties are allowed.
+ErrorPayloadCollapse all
+object
+code
+string에러 코드 (optional - 일부 응답에서는 제공되지 않을 수 있음).
+인증/세션 관련:
+SESSION_EXPIRED: 세션이 만료되었거나 인증 정보가 유효하지 않음
+UNAUTHORIZED: 인증이 필요한 작업을 시도함
+메시지 관련:
+MESSAGE_ERROR: 메시지 저장/전송 관련 일반 오류 (데이터 없음, 사용자 없음, 권한 없음, 파일 오류 등)
+MESSAGE_REJECTED: 금칙어가 포함되어 메시지가 거부됨
+RATE_LIMIT_EXCEEDED: 메시지 전송 횟수 제한 초과 (1분에 10000개)
+LOAD_ERROR: 이전 메시지 로드 중 오류 발생
+메시지 읽음 처리 관련:
+에러 코드 없이 message만 반환: Unauthorized, Invalid room, User not found, Room access denied 등
+메시지 리액션 관련:
+에러 코드 없이 message만 반환: Unauthorized, 메시지를 찾을 수 없습니다, 지원하지 않는 리액션 타입입니다 등
+채팅방 퇴장 관련:
+에러 코드 없이 message만 반환: Unauthorized, 채팅방 퇴장 중 오류가 발생했습니다 등
+message
+required
+string에러 메시지. 에러 코드가 없는 경우 이 필드만 제공됩니다.
+retryAfter
+integerformat: int64
+Rate limit 초과 시, 재시도 가능한 시간 (초). RATE_LIMIT_EXCEEDED 에러에만 포함됨.
+Additional properties are allowed.
